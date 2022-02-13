@@ -1,0 +1,43 @@
+pipeline {
+    agent any
+    environment {
+       MLNAPKVER = '1.1'
+   }
+    stages {
+        stage('Build MLNApk') {
+            steps {
+            lastChanges since: 'LAST_SUCCESSFUL_BUILD', format:'SIDE',matching: 'LINE'
+                script {
+                     docker.build('mln-apk/mln-apk')
+                }
+            }
+        }
+        stage('Publish and remove docker images') {
+            steps {
+                script {
+                    try {
+                      sh 'docker rm mln-apk${BUILD_NUMBER} --force'
+                    } catch (exc) {
+                    }
+                    sh 'docker create --name mln-apk${BUILD_NUMBER} temp/temp'
+                    sh 'docker cp mln-apk${BUILD_NUMBER}:./build/build.apk .'
+                    sh 'docker rm mln-apk${BUILD_NUMBER} --force'
+                    sh 'docker rmi temp/temp --force'
+                    sh 'curl -v --user ${artifactoryLogin}:${artifactoryPass} -T build.apk -X PUT "${artifactoryUrl}/mln-apk/${BRANCH_NAME}/mln-apk-${MLNAPKVER}.${BUILD_NUMBER}.apk"'
+                    if (env.BRANCH_NAME == 'master') {
+                    sh 'curl -v --user ${artifactoryLogin}:${artifactoryPass} -T build.apk -X PUT "${artifactoryUrl}/mln-apk/latest/mln-apk-latest.apk"'
+                    } else {
+                    echo 'the branch ${BRANCH_NAME}'
+                    sh 'curl -v --user ${artifactoryLogin}:${artifactoryPass} -T build.apk -X PUT "${artifactoryUrl}/mln-apk/latest/mln-apk-latest-${BRANCH_NAME}.apk"'
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            notifyEvents level: 'notice', message: '$JOB_NAME-$BUILD_NUMBER has status <b>$BUILD_STATUS</b>', title: '$BUILD_TAG - Message test', token: 'v6iTIzNqn81rpl9okATGndzYwF5nWeaw'
+        }
+    }
+}
+

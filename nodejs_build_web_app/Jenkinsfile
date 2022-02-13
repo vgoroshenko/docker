@@ -1,0 +1,50 @@
+pipeline {
+     environment {
+              TEEVER = '1.1' 
+     }
+    agent any
+    stages {
+        stage('Set version in Dockerfile') {
+             steps {
+                script {
+                   sh '''
+                   sed -i "s/TEEVER/$TEEVER/g" Dockerfile
+                   sed -i "s/BUILD_NUMBER/$BUILD_NUMBER/g" Dockerfile
+                   sed -i "s/BRANCH/$BRANCH_NAME/g" Dockerfile
+                   '''
+                  }
+                }
+              }
+        stage('Build Tee') {
+            steps {
+            lastChanges since: 'LAST_SUCCESSFUL_BUILD', format:'SIDE',matching: 'LINE'
+                script {
+                    docker.build('temp/temp')
+                }
+            }
+        }
+        stage('Publish and remove docker image') {
+            steps {
+                script {
+                    try {
+                      sh 'docker rm tee${BUILD_NUMBER} --force'
+                    } catch (exc) {
+                    }
+                    sh 'docker create --name tee${BUILD_NUMBER} temp/temp'
+                    sh 'docker cp tee${BUILD_NUMBER}:./ng-app/dist/build-latest.zip .'
+                    sh 'docker rm tee${BUILD_NUMBER} --force'
+                    sh 'docker rmi temp/temp --force'
+                    sh 'curl -v --user ${artifactoryLogin}:${artifactoryPass} -T build-latest.zip -X PUT "${artifactoryUrl}/tee/${BRANCH_NAME}/tee-${TEEVER}.${BUILD_NUMBER}.zip"'
+                    if (env.BRANCH_NAME == 'master') {
+                    sh 'curl -v --user ${artifactoryLogin}:${artifactoryPass} -T build-latest.zip -X PUT "${artifactoryUrl}/tee/latest/tee-latest.zip"'
+                    } else {
+                    echo 'the branch ${BRANCH_NAME}'
+                    sh 'curl -v --user ${artifactoryLogin}:${artifactoryPass} -T build-latest.zip -X PUT "${artifactoryUrl}/tee/latest/tee-latest-${BRANCH_NAME}.zip"'
+                    }
+                    //cleanWs()
+                    //deleteDir()
+                }
+            }
+        }
+    }
+}
