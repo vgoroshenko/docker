@@ -1,0 +1,55 @@
+# Docker Compose file Reference (https://docs.docker.com/compose/compose-file/)
+version: '3'
+volumes:
+  dynamodb_data:
+    driver: local
+# Define services
+services:
+
+  # DynamoDB Service
+  dynamo:
+    container_name: dynamodb-local-mln
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath /home/dynamodblocal"
+    volumes:
+      - dynamodb_data:/home/dynamodblocal
+    hostname: dynamodb-local-mln
+    ports:
+      - "8000:8000"
+    image: amazon/dynamodb-local:latest
+    restart: always
+    networks:
+      - mynet
+
+  # Redis Service
+  redis:
+    image: "redis:alpine" # Use a public Redis image to build the redis service
+    container_name: mln_redis
+    hostname: mln_redis
+    ports:
+      - "6379:6379"
+    restart: always
+    networks:
+      - mynet
+
+  # MLN Service
+  mln:
+    # Configuration for building the docker image for the service
+    build:
+      context: . # Use an image built from the specified dockerfile in the current directory.
+      dockerfile: cicd/Dockerfile
+    ports:
+      - "3000:3000" #
+    restart: always
+    env_file:
+      - mln.env
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "./log:/app/log"
+    depends_on:
+      - dynamo # This service depends on dynamo.
+      - redis # This service depends on redis.
+    networks:
+      - mynet
+networks:
+  mynet:
+    driver: bridge

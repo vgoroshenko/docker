@@ -1,0 +1,43 @@
+version: '3.7'
+services:
+  jenkins1:
+    image: jenkins/jenkins
+    privileged: true
+    user: root
+    ports:
+      - 8085:8080
+      - 50005:50000
+    container_name: jenkins_velox
+    restart: always
+#    network_mode: host
+    volumes:
+      - /jenkins_velox:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+
+#  jenkins2:
+#    image: jenkins/jenkins:lts
+#    privileged: true
+#    user: root
+#    depends_on:
+#      - jenkins1
+#    ports:
+#      - 8084:8080
+#      - 50004:50000
+#    container_name: my-jenkins-2
+#    volumes:
+#      - /jenkins2:/var/jenkins_home
+#      - /var/run/docker.sock:/var/run/docker.sock
+volumes:
+  jenkins_velox:
+    driver: local
+    driver_opts:
+      type: "none"
+      o: "bind"
+      device: "/jenkins_velox"
+
+#  jenkins2:
+#    driver: local
+#    driver_opts:
+#      type: "none"
+#      o: "bind"
+#      device: "/jenkins2"

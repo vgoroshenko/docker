@@ -1,0 +1,17 @@
+# Docker Compose file Reference (https://docs.docker.com/compose/compose-file/)
+version: '3'
+
+# Define services
+services:
+
+  mlnuiweb:
+    container_name: mlnuiweb
+    # Configuration for building the docker image for the service
+    build:
+      context: .
+      dockerfile: web.Dockerfile
+    ports:
+      - "8080:8080"
+    restart: always
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
